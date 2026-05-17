@@ -139,8 +139,7 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
         {:ok, date} ->
           calendar = socket.assigns.calendar_module
 
-          calendar_date =
-            if calendar == Calendar.ISO, do: date, else: Date.convert!(date, calendar)
+          calendar_date = safe_convert(date, calendar)
 
           {:noreply,
            socket
@@ -268,23 +267,11 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
           prev_assigns.cursor
 
         selected_iso_date ->
-          calendar_date =
-            if calendar_module == Calendar.ISO do
-              selected_iso_date
-            else
-              Date.convert!(selected_iso_date, calendar_module)
-            end
-
+          calendar_date = safe_convert(selected_iso_date, calendar_module)
           %{year: calendar_date.year, month: calendar_date.month}
 
         true ->
-          today_in_calendar =
-            if calendar_module == Calendar.ISO do
-              Date.utc_today()
-            else
-              Date.convert!(Date.utc_today(), calendar_module)
-            end
-
+          today_in_calendar = safe_convert(Date.utc_today(), calendar_module)
           %{year: today_in_calendar.year, month: today_in_calendar.month}
       end
     end
@@ -303,7 +290,7 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
       cursor = assigns.cursor
       locale = assigns.locale
 
-      first_of_month = build_date!(cursor.year, cursor.month, 1, calendar)
+      first_of_month = safe_build_date(cursor.year, cursor.month, 1, calendar)
       first_dow = Date.day_of_week(first_of_month)
       first_day_of_week = first_day_for_locale(locale)
       offset = rem(first_dow - first_day_of_week + 7, 7)
@@ -318,13 +305,7 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
         Enum.map(0..41, fn i ->
           cell_date = Date.add(grid_start, i)
 
-          iso_date =
-            if cell_date.calendar == Calendar.ISO do
-              cell_date
-            else
-              Date.convert!(cell_date, Calendar.ISO)
-            end
-
+          iso_date = safe_convert(cell_date, Calendar.ISO)
           iso = Date.to_iso8601(iso_date)
 
           %{
@@ -348,8 +329,40 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
       }
     end
 
-    defp build_date!(year, month, day, Calendar.ISO), do: Date.new!(year, month, day)
-    defp build_date!(year, month, day, module), do: Date.new!(year, month, day, module)
+    # Library code never raises on render-path. If the
+    # year/month/day combo isn't valid in `calendar`, fall
+    # back to a known-good Gregorian today — the UI still
+    # renders rather than 500ing.
+    defp safe_build_date(year, month, day, Calendar.ISO) do
+      case Date.new(year, month, day) do
+        {:ok, d} -> d
+        _ -> Date.utc_today()
+      end
+    end
+
+    defp safe_build_date(year, month, day, module) do
+      case Date.new(year, month, day, module) do
+        {:ok, d} ->
+          d
+
+        _ ->
+          # Fall back to today converted into the target
+          # calendar; if that also fails, return ISO today.
+          safe_convert(Date.utc_today(), module)
+      end
+    end
+
+    # Tolerant `Date.convert`: returns the input untouched if
+    # conversion fails (so callers always get back a valid
+    # `%Date{}` for display arithmetic).
+    defp safe_convert(%Date{calendar: target} = date, target), do: date
+
+    defp safe_convert(%Date{} = date, target) do
+      case Date.convert(date, target) do
+        {:ok, converted} -> converted
+        _ -> date
+      end
+    end
 
     defp first_day_for_locale(locale) do
       case Localize.Calendar.first_day_for_locale(locale) do
@@ -403,12 +416,7 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
       # `:calendar` attr the component received. We convert
       # here so Japanese imperial / Buddhist / Hijri locales
       # render their own year and era markers.
-      display_date =
-        if calendar_module == Calendar.ISO do
-          date
-        else
-          Date.convert!(date, calendar_module)
-        end
+      display_date = safe_convert(date, calendar_module)
 
       case Localize.Date.to_string(display_date, locale: locale, format: format) do
         {:ok, formatted} -> formatted

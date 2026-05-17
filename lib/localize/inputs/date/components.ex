@@ -21,6 +21,42 @@ if Code.ensure_loaded?(Phoenix.Component) and
           }
         })
 
+    ## Tolerance of invalid input
+
+    These components sit on the render path and never raise on
+    bad input — the page always renders. Specifically:
+
+    * **Unknown `:locale`** — formatting falls back to
+      whatever `Localize.Date.to_string/2` returns; on
+      failure the cell renders the ISO-8601 form of the
+      date (`2026-05-17`).
+
+    * **Unknown `:calendar`** — date conversion uses a
+      tolerant `Date.convert/2`; on failure the date is
+      kept in its original calendar (typically
+      `Calendar.ISO`) and rendered using whatever pattern
+      lookup succeeds.
+
+    * **Blank or unparseable `value`** — the visible text
+      input renders empty; the hidden ISO carrier stays
+      empty. `Localize.Inputs.Date.Parser.parse_date/2`
+      returns `{:ok, nil}` for blanks and
+      `{:error, %Calendrical.DateParseError{}}` for
+      garbage, never raises.
+
+    * **`date_range_input/1` child field atoms** — derives
+      `{field}_from` and `{field}_to` via
+      `String.to_existing_atom/1`. The atom must already
+      exist (it does, because your changeset/schema defines
+      it for form parsing); if it doesn't, an `ArgumentError`
+      surfaces at render time and points at the missing field.
+
+    * **`DatePickerLive` malformed cursor / month** — the
+      server-rendered grid uses tolerant `safe_convert/2` and
+      `safe_build_date/4` helpers. An invalid year/month
+      combo for the target calendar falls back to today
+      rather than 500ing the LiveView.
+
     """
 
     use Phoenix.Component
@@ -264,7 +300,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
       <div class={["date-range-input-wrapper", @class]} id={"#{@id}-wrapper"} data-date-range-input>
         <.date_input
           form={@form}
-          field={String.to_atom("#{@field}_from")}
+          field={String.to_existing_atom("#{@field}_from")}
           locale={@locale}
           min={@min}
           max={@max}
@@ -280,7 +316,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
         <span class="date-range-separator" aria-hidden="true">–</span>
         <.date_input
           form={@form}
-          field={String.to_atom("#{@field}_to")}
+          field={String.to_existing_atom("#{@field}_to")}
           locale={@locale}
           min={@min}
           max={@max}
@@ -559,9 +595,17 @@ if Code.ensure_loaded?(Phoenix.Component) and
 
     defp ensure_calendar(%Date{} = date, cldr_calendar) when is_atom(cldr_calendar) do
       case Calendrical.calendar_from_cldr_calendar_type(cldr_calendar) do
-        {:ok, module} when date.calendar == module -> date
-        {:ok, module} -> Date.convert!(date, module)
-        _ -> date
+        {:ok, module} when date.calendar == module ->
+          date
+
+        {:ok, module} ->
+          case Date.convert(date, module) do
+            {:ok, converted} -> converted
+            _ -> date
+          end
+
+        _ ->
+          date
       end
     end
 

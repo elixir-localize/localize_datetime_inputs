@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.1.1] — 2026-05-17
+
+### Bug Fixes
+
+* `<.date_input>` and `DatePickerLive` no longer raise on a date that can't be converted into the requested calendar. `Date.convert!/2` and `Date.new!/3,4` replaced throughout with tolerant `safe_convert/2` and `safe_build_date/4` helpers that fall back to the input date or today rather than crashing the render path.
+
+* `<.date_range_input>` switched from `String.to_atom/1` to `String.to_existing_atom/1` when deriving the `{field}_from` / `{field}_to` child fields, preventing atom-table pollution from user-supplied field names. Consumers' schemas already define these atoms for form parsing to work, so this is invisible in practice.
+
 ## [v0.1.0] — 2026-05-17
 
 Extracted from `localize_inputs` 0.3 alongside `localize_number_inputs` and `localize_inputs_core`. Carries the date form input components — date_input, date_range_input, date_range_picker, and the `DatePickerLive` LiveComponent — plus their parser, validator, and Ecto Changeset bridge. Depends on `calendrical` for multi-calendar (Gregorian, Buddhist, Japanese, Islamic, Persian, Hebrew, ROC, …) parsing.
