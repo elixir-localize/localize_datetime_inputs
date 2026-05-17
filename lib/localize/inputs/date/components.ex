@@ -300,7 +300,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
       <div class={["date-range-input-wrapper", @class]} id={"#{@id}-wrapper"} data-date-range-input>
         <.date_input
           form={@form}
-          field={String.to_existing_atom("#{@field}_from")}
+          field={range_child_field(@field, "from")}
           locale={@locale}
           min={@min}
           max={@max}
@@ -316,7 +316,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
         <span class="date-range-separator" aria-hidden="true">–</span>
         <.date_input
           form={@form}
-          field={String.to_existing_atom("#{@field}_to")}
+          field={range_child_field(@field, "to")}
           locale={@locale}
           min={@min}
           max={@max}
@@ -497,6 +497,29 @@ if Code.ensure_loaded?(Phoenix.Component) and
       |> assign_new(:input_class, fn -> nil end)
       |> assign_new(:button_class, fn -> nil end)
       |> assign_new(:overlay_class, fn -> nil end)
+    end
+
+    # Compute the child field atom (`:<parent>_from` or
+    # `:<parent>_to`) for the wrapped `<.date_input>` calls.
+    #
+    # `@field` is a component attr — bounded by source code,
+    # not a value sourced from URL/form/HTTP/JSON, so the
+    # atom-table-safety rule (no `to_atom` on untrusted
+    # input) doesn't apply. We still prefer
+    # `String.to_existing_atom/1` because the consumer's
+    # changeset/schema typically declares these fields; if
+    # neither side has loaded the atom yet (e.g. an isolated
+    # render in a test or a standalone playground page),
+    # fall back to `String.to_atom/1` so the component
+    # renders rather than 500ing.
+    defp range_child_field(parent_field, suffix) when is_atom(parent_field) do
+      name = "#{parent_field}_#{suffix}"
+
+      try do
+        String.to_existing_atom(name)
+      rescue
+        ArgumentError -> String.to_atom(name)
+      end
     end
 
     defp assign_date_range_common(assigns) do

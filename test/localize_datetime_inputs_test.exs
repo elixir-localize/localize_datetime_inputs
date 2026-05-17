@@ -334,13 +334,6 @@ defmodule Localize.DateTimeInputsTest do
 
   describe "Components.date_range_input/1" do
     test "renders two date_input children" do
-      # Reference the derived field atoms so they exist —
-      # the component intentionally uses `String.to_existing_atom`
-      # for its `{field}_from` / `{field}_to` child fields,
-      # which in production are defined by the consumer's
-      # changeset/schema.
-      _ = :trip_from
-      _ = :trip_to
       form = Phoenix.HTML.FormData.to_form(%{}, as: :event)
 
       assigns = %{

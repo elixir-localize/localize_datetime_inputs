@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.1.2] — 2026-05-17
+
+### Bug Fixes
+
+* `date_range_input/1` no longer 500s when the consumer's form is built without pre-declaring the derived `:<field>_from` / `:<field>_to` atoms (e.g. a standalone playground page or a `Phoenix.HTML.FormData.to_form/2` map with bare keys). 0.1.1's `String.to_existing_atom/1` raised `ArgumentError` in that case; the derivation now prefers `to_existing_atom` and falls back to `to_atom` when the atom hasn't been loaded yet. The `@field` attr is a developer-supplied component attribute bounded by source code, so the atom-table-safety rule (no `to_atom` on untrusted input) doesn't apply.
+
 ## [v0.1.1] — 2026-05-17
 
 ### Bug Fixes
