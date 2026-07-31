@@ -1,7 +1,7 @@
 defmodule Localize.DateTimeInputs.MixProject do
   use Mix.Project
 
-  @version "0.1.2"
+  @version "0.2.0"
   @source_url "https://github.com/elixir-localize/localize_datetime_inputs"
 
   def project do
@@ -69,13 +69,14 @@ defmodule Localize.DateTimeInputs.MixProject do
 
   defp deps do
     [
-      {:localize, "~> 0.37"},
-      {:calendrical, "~> 0.5"},
-      {:localize_inputs_core, "~> 0.1"},
+      {:localize, "~> 1.0"},
+      {:calendrical, "~> 1.0"},
+      {:localize_inputs_core, "~> 0.2"},
       {:phoenix_html, "~> 4.0", optional: true},
       {:phoenix_live_view, "~> 1.0", optional: true},
       {:gettext, "~> 1.0", optional: true},
       {:ex_doc, "~> 0.30", only: [:dev, :release], runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: :dev, runtime: false}
     ] ++ maybe_json_polyfill()
   end

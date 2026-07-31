@@ -76,19 +76,8 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
       calendar_module = resolve_calendar_module(cldr_calendar)
       field_struct = assigns.form[assigns.field]
 
-      iso_value =
-        case field_struct.value do
-          %Date{} = d -> Date.to_iso8601(d)
-          s when is_binary(s) and s != "" -> s
-          _ -> nil
-        end
-
-      selected_iso_date =
-        case iso_value && Date.from_iso8601(iso_value) do
-          {:ok, d} -> d
-          _ -> nil
-        end
-
+      iso_value = iso_value_for(field_struct)
+      selected_iso_date = parse_iso_date(iso_value)
       cursor = derive_cursor(socket.assigns, selected_iso_date, calendar_module)
 
       socket =
@@ -115,6 +104,23 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
         |> assign_new(:overlay_class, fn -> nil end)
 
       {:ok, socket}
+    end
+
+    defp iso_value_for(field_struct) do
+      case field_struct.value do
+        %Date{} = date -> Date.to_iso8601(date)
+        value when is_binary(value) and value != "" -> value
+        _ -> nil
+      end
+    end
+
+    defp parse_iso_date(nil), do: nil
+
+    defp parse_iso_date(iso_value) do
+      case Date.from_iso8601(iso_value) do
+        {:ok, date} -> date
+        _ -> nil
+      end
     end
 
     @impl true

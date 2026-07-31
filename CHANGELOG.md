@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.2.0] — 2026-07-31
+
+### Changed
+
+* Requires `localize ~> 1.0`, `calendrical ~> 1.0` and `localize_inputs_core ~> 0.2`. The previous requirements excluded Localize 1.0.
+
 ## [v0.1.2] — 2026-05-17
 
 ### Bug Fixes

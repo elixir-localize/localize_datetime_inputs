@@ -43,11 +43,11 @@ jobs:
             otp: "28"
 
           # Elixir 1.20 — supports OTP 27–29
-          - elixir: "1.20.0-rc.5-otp-27"
+          - elixir: "1.20.2-otp-27"
             otp: "27"
-          - elixir: "1.20.0-rc.5-otp-28"
+          - elixir: "1.20.2-otp-28"
             otp: "28"
-          - elixir: "1.20.0-rc.5-otp-29"
+          - elixir: "1.20.2-otp-29"
             otp: "29"
             lint: true
 
@@ -79,6 +79,10 @@ jobs:
         if: matrix.lint
         run: mix format --check-formatted
 
+      - name: Run credo
+        if: matrix.lint
+        run: mix credo --strict
+
       - name: Compile (warnings as errors)
         run: mix compile --warnings-as-errors
 
@@ -99,3 +103,9 @@ jobs:
         env:
           MIX_ENV: dev
         run: mix dialyzer
+
+      - name: Check docs
+        if: matrix.lint
+        env:
+          MIX_ENV: release
+        run: mix docs --warnings-as-errors

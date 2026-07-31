@@ -41,11 +41,9 @@ defmodule Localize.Inputs.Date.AtomSafetyTest do
 
     if violations != [] do
       lines =
-        violations
-        |> Enum.map(fn {file, lnum, label, src} ->
+        Enum.map_join(violations, "\n\n", fn {file, lnum, label, src} ->
           "  #{file}:#{lnum}  (#{label})\n    #{src}"
         end)
-        |> Enum.join("\n\n")
 
       flunk("""
       Forbidden atom-creation call found in lib/. Use

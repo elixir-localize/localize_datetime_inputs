@@ -450,9 +450,11 @@ defmodule Localize.DateTimeInputsTest do
       # should reflect the locale-correct format.
       assert html =~ ~s|class="date-input-wrapper date-picker-live |
       # The Islamic-formatted date for 2026-04-18 is
-      # "1 ذو القعدة 1447 هـ" — assert the year fragment
-      # appears in the rendered text input.
-      assert html =~ "1447"
+      # "١ ذو القعدة ١٤٤٧ هـ" — assert the year fragment
+      # appears in the rendered text input. `ar-SA` defaults to
+      # the `arab` numbering system, so the year renders as
+      # Arabic-Indic digits, not ASCII.
+      assert html =~ "١٤٤٧"
     end
 
     test "renders Buddhist month grid with BE year" do

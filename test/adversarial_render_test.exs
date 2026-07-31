@@ -185,15 +185,13 @@ defmodule Localize.Inputs.Date.AdversarialRenderTest do
   end
 
   defp assert_no_raise(fun, context: ctx) do
-    try do
-      fun.()
-    rescue
-      e ->
-        flunk("""
-        Component raised an exception under #{ctx}:
+    fun.()
+  rescue
+    e ->
+      flunk("""
+      Component raised an exception under #{ctx}:
 
-          #{Exception.format(:error, e, [])}
-        """)
-    end
+        #{Exception.format(:error, e, [])}
+      """)
   end
 end
