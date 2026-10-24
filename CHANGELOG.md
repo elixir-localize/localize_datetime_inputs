@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.3.0] — 2026-10-24
+
+### Changed
+
+* Requires `calendrical ~> 2.0` and `localize ~> 1.4`. `Localize.Inputs.Date.Parser.parse_date/2` keeps its CLDR-key `:calendar` (`:hebrew`) and `:return_calendar` options, translating them for Calendrical 2.0, which takes a calendar module and has no `:return_calendar`.
+
+* A parse error is `Localize.DateParseError`, which Calendrical 2.0 returns, where it was `Calendrical.DateParseError`.
+
+* A Hebrew date's month is its place in the year, as Calendrical 2.0 numbers it: `"2026-05-16"` parses to `~D[5786-08-29 Calendrical.Hebrew]`, where it was `5786-09-29`.
+
+* A week parses in the locale's own weeks, as Localize 1.4 counts them: `"week 20 of 2026"` in `:en` is Sunday `~D[2026-05-10]`, where it was Monday `~D[2026-05-11]`.
+
+### Fixed
+
+* `date_input/1` and `date_range_input/1` format a string value in their calendar again; on Calendrical 2.0 they showed it as typed.
+
 ## [v0.2.0] — 2026-07-31
 
 ### Changed

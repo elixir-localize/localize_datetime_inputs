@@ -15,7 +15,7 @@ Multi-calendar support (Gregorian, Buddhist, Japanese imperial, Islamic, Persian
 ```elixir
 def deps do
   [
-    {:localize_datetime_inputs, "~> 0.2"},
+    {:localize_datetime_inputs, "~> 0.3"},
 
     # Activate the HEEx components:
     {:phoenix_html, "~> 4.0"},

@@ -41,7 +41,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
       input renders empty; the hidden ISO carrier stays
       empty. `Localize.Inputs.Date.Parser.parse_date/2`
       returns `{:ok, nil}` for blanks and
-      `{:error, %Calendrical.DateParseError{}}` for
+      `{:error, %Localize.DateParseError{}}` for
       garbage, never raises.
 
     * **`date_range_input/1` child field atoms** — derives
@@ -596,7 +596,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
       # under `:japanese`) AND returns a `Date` already tagged
       # with the right calendar module — no second-stage
       # conversion needed.
-      case Calendrical.Date.parse(string, locale: locale, calendar: cldr_calendar) do
+      case Localize.Inputs.Date.Parser.parse_date(string, locale: locale, calendar: cldr_calendar) do
         {:ok, date} ->
           case Localize.Date.to_string(date, locale: locale, format: format) do
             {:ok, formatted} -> formatted

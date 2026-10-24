@@ -50,8 +50,51 @@ defmodule Localize.DateTimeInputsTest do
     end
 
     test "garbage rejected with structured error" do
-      assert {:error, %Calendrical.DateParseError{input: "garbage"}} =
+      assert {:error, %Localize.DateParseError{input: "garbage"}} =
                Localize.Inputs.Date.Parser.parse_date("garbage", locale: :en)
+    end
+
+    # Calendrical takes the calendar as a module; this layer takes the
+    # CLDR key and maps it, so every key the components use works.
+    test "the calendar is named by its CLDR key or its module" do
+      assert {:ok, ~D[2026-05-16]} =
+               Localize.Inputs.Date.Parser.parse_date("2026-05-16",
+                 locale: :en,
+                 calendar: :gregorian
+               )
+
+      assert {:ok, %Date{calendar: Calendrical.Hebrew}} =
+               Localize.Inputs.Date.Parser.parse_date("2026-05-16",
+                 locale: :en,
+                 calendar: :hebrew
+               )
+
+      assert {:ok, %Date{calendar: Calendrical.Hebrew}} =
+               Localize.Inputs.Date.Parser.parse_date("2026-05-16",
+                 locale: :en,
+                 calendar: Calendrical.Hebrew
+               )
+
+      assert {:error, %Localize.UnknownCalendarError{}} =
+               Localize.Inputs.Date.Parser.parse_date("2026-05-16",
+                 locale: :en,
+                 calendar: :klingon
+               )
+    end
+
+    test "return_calendar: :iso returns the date in Calendar.ISO" do
+      assert {:ok, ~D[2026-05-16]} =
+               Localize.Inputs.Date.Parser.parse_date("2026-05-16",
+                 locale: :en,
+                 calendar: :hebrew,
+                 return_calendar: :iso
+               )
+
+      assert {:error, %Localize.InvalidValueError{value: :julian}} =
+               Localize.Inputs.Date.Parser.parse_date("2026-05-16",
+                 locale: :en,
+                 return_calendar: :julian
+               )
     end
 
     test "lenient separator equivalence (CLDR lenient-scope-date)" do
@@ -329,6 +372,42 @@ defmodule Localize.DateTimeInputsTest do
 
       # en medium format for 2026-05-16 is "May 16, 2026"
       assert html =~ "May 16, 2026"
+    end
+
+    # A submitted value is a string: it is parsed in the component's
+    # calendar, named by its CLDR key, and formatted, not shown as typed.
+    test "a string value is formatted in its calendar" do
+      for {calendar, formatted} <- [gregorian: "May 16, 2026", japanese: "May 16, 8 Reiwa"] do
+        form = Phoenix.HTML.FormData.to_form(%{"date" => "2026-05-16"}, as: :event)
+
+        assigns = %{
+          form: form,
+          field: :date,
+          value: nil,
+          locale: :en,
+          calendar: calendar,
+          min: nil,
+          max: nil,
+          placeholder: nil,
+          display_format: :medium,
+          variant: :auto,
+          js: true,
+          class: nil,
+          input_class: nil,
+          button_class: nil,
+          overlay_class: nil,
+          rest: %{},
+          __changed__: nil
+        }
+
+        html =
+          assigns
+          |> Localize.Inputs.Date.Components.date_input()
+          |> Phoenix.HTML.Safe.to_iodata()
+          |> IO.iodata_to_binary()
+
+        assert html =~ formatted, "#{calendar}"
+      end
     end
   end
 

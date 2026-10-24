@@ -1,7 +1,7 @@
 defmodule Localize.DateTimeInputs.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.3.0"
   @source_url "https://github.com/elixir-localize/localize_datetime_inputs"
 
   def project do
@@ -69,8 +69,8 @@ defmodule Localize.DateTimeInputs.MixProject do
 
   defp deps do
     [
-      {:localize, "~> 1.0"},
-      {:calendrical, "~> 1.0"},
+      {:localize, "~> 1.4"},
+      {:calendrical, "~> 2.0"},
       {:localize_inputs_core, "~> 0.2"},
       {:phoenix_html, "~> 4.0", optional: true},
       {:phoenix_live_view, "~> 1.0", optional: true},
