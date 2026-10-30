@@ -28,7 +28,7 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
           id="event-date"
           form={@form}
           field={:date}
-          calendar={:hebrew}
+          calendar={Calendrical.Hebrew}
           locale={:"he-IL"}
         />
 
@@ -40,10 +40,13 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
 
     * `:field` — the form field as an atom.
 
-    * `:calendar` — a CLDR calendar key (`:gregorian`,
-      `:hebrew`, `:islamic_civil`, `:islamic_umalqura`,
-      `:persian`, `:japanese`, `:buddhist`, `:roc`, etc.).
-      Defaults to `:gregorian`.
+    * `:calendar` — a calendar module (`Calendar.ISO`,
+      `Calendrical.Hebrew`, `Calendrical.Islamic.Civil`,
+      `Calendrical.Persian`, `Calendrical.Japanese`,
+      `Calendrical.Buddhist`, etc.). Defaults to
+      `Calendar.ISO`. A CLDR calendar type, such as
+      `:hebrew`, is not a calendar and renders in
+      `Calendar.ISO`.
 
     * `:locale` — display locale. Defaults to
       `Localize.get_locale/0`.
@@ -71,9 +74,8 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
 
     @impl true
     def update(assigns, socket) do
-      cldr_calendar = Map.get(assigns, :calendar, :gregorian)
       locale = Map.get(assigns, :locale) || Localize.get_locale()
-      calendar_module = resolve_calendar_module(cldr_calendar)
+      calendar_module = calendar_module(Map.get(assigns, :calendar, Calendar.ISO))
       field_struct = assigns.form[assigns.field]
 
       iso_value = iso_value_for(field_struct)
@@ -83,7 +85,6 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
       socket =
         socket
         |> assign(assigns)
-        |> assign(:cldr_calendar, cldr_calendar)
         |> assign(:locale, locale)
         |> assign(:calendar_module, calendar_module)
         |> assign(:field_struct, field_struct)
@@ -256,16 +257,26 @@ if Code.ensure_loaded?(Phoenix.LiveComponent) and
 
     # ── Internals ──────────────────────────────────────────
 
-    defp resolve_calendar_module(:gregorian), do: Calendar.ISO
+    # The grid renders in the calendar module the caller named. A
+    # CLDR calendar type, such as `:hebrew`, is not resolved to a
+    # module — several calendars share one CLDR type, so resolving
+    # it would render a calendar the caller did not name — and a
+    # value that is no calendar renders in `Calendar.ISO` rather
+    # than raising on the render path.
+    #
+    # `Calendrical.calendar_module?/1` is false for `Calendar.ISO`,
+    # which Calendrical did not compile, so it is named here.
+    defp calendar_module(Calendar.ISO), do: Calendar.ISO
 
-    defp resolve_calendar_module(cldr_calendar) do
-      # `:calendrical` is a hard dep of this library, so no
-      # runtime `ensure_loaded?` check is needed.
-      case Calendrical.calendar_from_cldr_calendar_type(cldr_calendar) do
-        {:ok, module} -> module
-        _ -> Calendar.ISO
+    defp calendar_module(calendar) when is_atom(calendar) do
+      if Calendrical.calendar_module?(calendar) do
+        calendar
+      else
+        Calendar.ISO
       end
     end
+
+    defp calendar_module(_calendar), do: Calendar.ISO
 
     defp derive_cursor(prev_assigns, selected_iso_date, calendar_module) do
       cond do

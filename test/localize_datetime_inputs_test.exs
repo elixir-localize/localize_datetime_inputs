@@ -54,19 +54,15 @@ defmodule Localize.DateTimeInputsTest do
                Localize.Inputs.Date.Parser.parse_date("garbage", locale: :en)
     end
 
-    # Calendrical takes the calendar as a module; this layer takes the
-    # CLDR key and maps it, so every key the components use works.
-    test "the calendar is named by its CLDR key or its module" do
+    # A calendar is a module. A CLDR calendar type is refused rather
+    # than mapped: `:gregorian` names both `Calendar.ISO` and
+    # `Calendrical.Gregorian`, so mapping it would pick one of them for
+    # the caller.
+    test "the calendar is a module" do
       assert {:ok, ~D[2026-05-16]} =
                Localize.Inputs.Date.Parser.parse_date("2026-05-16",
                  locale: :en,
-                 calendar: :gregorian
-               )
-
-      assert {:ok, %Date{calendar: Calendrical.Hebrew}} =
-               Localize.Inputs.Date.Parser.parse_date("2026-05-16",
-                 locale: :en,
-                 calendar: :hebrew
+                 calendar: Calendar.ISO
                )
 
       assert {:ok, %Date{calendar: Calendrical.Hebrew}} =
@@ -75,18 +71,29 @@ defmodule Localize.DateTimeInputsTest do
                  calendar: Calendrical.Hebrew
                )
 
-      assert {:error, %Localize.UnknownCalendarError{}} =
+      assert {:ok, %Date{calendar: Calendrical.Gregorian}} =
                Localize.Inputs.Date.Parser.parse_date("2026-05-16",
                  locale: :en,
-                 calendar: :klingon
+                 calendar: Calendrical.Gregorian
                )
+    end
+
+    test "a CLDR calendar type is not a calendar" do
+      for calendar <- [:gregorian, :hebrew, :japanese, "hebrew", :klingon, nil, :""] do
+        assert {:error, %Localize.UnknownCalendarError{}} =
+                 Localize.Inputs.Date.Parser.parse_date("2026-05-16",
+                   locale: :en,
+                   calendar: calendar
+                 ),
+               "calendar: #{inspect(calendar)} was accepted"
+      end
     end
 
     test "return_calendar: :iso returns the date in Calendar.ISO" do
       assert {:ok, ~D[2026-05-16]} =
                Localize.Inputs.Date.Parser.parse_date("2026-05-16",
                  locale: :en,
-                 calendar: :hebrew,
+                 calendar: Calendrical.Hebrew,
                  return_calendar: :iso
                )
 
@@ -375,9 +382,12 @@ defmodule Localize.DateTimeInputsTest do
     end
 
     # A submitted value is a string: it is parsed in the component's
-    # calendar, named by its CLDR key, and formatted, not shown as typed.
+    # calendar module and formatted, not shown as typed.
     test "a string value is formatted in its calendar" do
-      for {calendar, formatted} <- [gregorian: "May 16, 2026", japanese: "May 16, 8 Reiwa"] do
+      for {calendar, formatted} <- [
+            {Calendar.ISO, "May 16, 2026"},
+            {Calendrical.Japanese, "May 16, 8 Reiwa"}
+          ] do
         form = Phoenix.HTML.FormData.to_form(%{"date" => "2026-05-16"}, as: :event)
 
         assigns = %{
@@ -424,7 +434,7 @@ defmodule Localize.DateTimeInputsTest do
         placeholder_from: nil,
         placeholder_to: nil,
         display_format: :medium,
-        calendar: :gregorian,
+        calendar: Calendar.ISO,
         variant: :auto,
         js: true,
         class: nil,
@@ -519,7 +529,7 @@ defmodule Localize.DateTimeInputsTest do
           form: form,
           field: :date,
           locale: :"ar-SA",
-          calendar: :islamic_civil,
+          calendar: Calendrical.Islamic.Civil,
           open: true
         )
 
@@ -549,7 +559,7 @@ defmodule Localize.DateTimeInputsTest do
           form: form,
           field: :date,
           locale: :"th-TH",
-          calendar: :buddhist
+          calendar: Calendrical.Buddhist
         )
 
       # Buddhist year 2569 = Gregorian 2026
@@ -569,7 +579,7 @@ defmodule Localize.DateTimeInputsTest do
           form: form,
           field: :date,
           locale: :"ja-JP",
-          calendar: :japanese
+          calendar: Calendrical.Japanese
         )
 
       # 令和6年 = Reiwa 6 = 2024 — the input value should
@@ -594,7 +604,7 @@ defmodule Localize.DateTimeInputsTest do
         placeholder_from: nil,
         placeholder_to: nil,
         display_format: :medium,
-        calendar: :gregorian,
+        calendar: Calendar.ISO,
         variant: :auto,
         js: true,
         class: nil,
@@ -638,7 +648,7 @@ defmodule Localize.DateTimeInputsTest do
         placeholder_from: nil,
         placeholder_to: nil,
         display_format: :medium,
-        calendar: :gregorian,
+        calendar: Calendar.ISO,
         variant: :auto,
         js: true,
         class: nil,

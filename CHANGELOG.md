@@ -1,10 +1,16 @@
 # Changelog
 
-## [v0.3.0] — 2026-10-24
+## [v0.3.0] — 2026-10-31
+
+### Breaking changes
+
+* The `:calendar` option of `Localize.Inputs.Date.Parser.parse_date/2` and the `:calendar` attribute of every component take a calendar module, such as `Calendrical.Hebrew`, and default to `Calendar.ISO`. A CLDR calendar type, such as `:hebrew`, is refused by the parser and renders in `Calendar.ISO` in the components, where it used to be resolved to a module.
+
+* One CLDR calendar type can name several calendars — `:gregorian` names both `Calendar.ISO` and `Calendrical.Gregorian` — so resolving it answered in a calendar the caller had not named.
 
 ### Changed
 
-* Requires `calendrical ~> 2.0` and `localize ~> 1.4`. `Localize.Inputs.Date.Parser.parse_date/2` keeps its CLDR-key `:calendar` (`:hebrew`) and `:return_calendar` options, translating them for Calendrical 2.0, which takes a calendar module and has no `:return_calendar`.
+* Requires `calendrical ~> 2.0` and `localize ~> 1.4`, and is tested against `localize 1.5`. `Localize.Inputs.Date.Parser.parse_date/2` keeps its `:return_calendar` option, which Calendrical 2.0 does not have.
 
 * A parse error is `Localize.DateParseError`, which Calendrical 2.0 returns, where it was `Calendrical.DateParseError`.
 
@@ -15,6 +21,8 @@
 ### Fixed
 
 * `date_input/1` and `date_range_input/1` format a string value in their calendar again; on Calendrical 2.0 they showed it as typed.
+
+* `Localize.Inputs.Date.Parser.parse_date/2` returns `{:error, Localize.InvalidValueError{}}` for a value that is neither a string nor `nil`, where it raised `FunctionClauseError`. A form field sent more than once arrives as a list, so a consumer parsing params directly could crash its request path.
 
 ## [v0.2.0] — 2026-07-31
 

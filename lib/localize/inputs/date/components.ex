@@ -129,7 +129,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
     attr(:max, :any, default: nil)
     attr(:placeholder, :string, default: nil)
     attr(:display_format, :atom, default: :medium, values: [:short, :medium, :long, :full])
-    attr(:calendar, :atom, default: :gregorian)
+    attr(:calendar, :atom, default: Calendar.ISO)
     attr(:variant, :atom, default: :auto, values: [:auto, :dropdown, :sheet])
     attr(:js, :boolean, default: true)
     attr(:class, :string, default: nil)
@@ -148,7 +148,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
         data-date-input
         data-locale={to_string(@locale)}
         data-display-format={Atom.to_string(@display_format)}
-        data-calendar={cldr_to_intl_calendar(@calendar)}
+        data-calendar={intl_calendar(@calendar)}
         data-min={date_attr(@min)}
         data-max={date_attr(@max)}
         data-variant={to_string(@variant)}
@@ -285,7 +285,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
     attr(:placeholder_from, :string, default: nil)
     attr(:placeholder_to, :string, default: nil)
     attr(:display_format, :atom, default: :medium, values: [:short, :medium, :long, :full])
-    attr(:calendar, :atom, default: :gregorian)
+    attr(:calendar, :atom, default: Calendar.ISO)
     attr(:variant, :atom, default: :auto, values: [:auto, :dropdown, :sheet])
     attr(:js, :boolean, default: true)
     attr(:class, :string, default: nil)
@@ -368,7 +368,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
     attr(:placeholder_from, :string, default: nil)
     attr(:placeholder_to, :string, default: nil)
     attr(:display_format, :atom, default: :medium, values: [:short, :medium, :long, :full])
-    attr(:calendar, :atom, default: :gregorian)
+    attr(:calendar, :atom, default: Calendar.ISO)
     attr(:variant, :atom, default: :auto, values: [:auto, :dropdown, :sheet])
     attr(:js, :boolean, default: true)
     attr(:class, :string, default: nil)
@@ -387,7 +387,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
         data-range-picker
         data-locale={to_string(@locale)}
         data-display-format={Atom.to_string(@display_format)}
-        data-calendar={cldr_to_intl_calendar(@calendar)}
+        data-calendar={intl_calendar(@calendar)}
         data-min={date_attr(@min)}
         data-max={date_attr(@max)}
         data-variant={to_string(@variant)}
@@ -483,7 +483,7 @@ if Code.ensure_loaded?(Phoenix.Component) and
           assigns.value || field_value,
           locale,
           assigns.display_format,
-          Map.get(assigns, :calendar, :gregorian)
+          Map.get(assigns, :calendar, Calendar.ISO)
         )
 
       assigns
@@ -579,8 +579,9 @@ if Code.ensure_loaded?(Phoenix.Component) and
       # `Localize.Date.to_string/2` dispatches its CLDR pattern
       # lookup on `date.calendar`, so a `Calendar.ISO` date
       # always renders under `:gregorian` even when the
-      # component received `calendar: :japanese`. Ensure the
-      # date is in the requested calendar before formatting.
+      # component received `calendar: Calendrical.Japanese`.
+      # Ensure the date is in the requested calendar before
+      # formatting.
       display_date = ensure_calendar(date, cldr_calendar)
 
       case Localize.Date.to_string(display_date, locale: locale, format: format) do
@@ -611,28 +612,27 @@ if Code.ensure_loaded?(Phoenix.Component) and
     defp format_date_for_display(_, _, _, _), do: ""
 
     # No-op when the date is already in the requested
-    # calendar; convert otherwise. `:calendrical` is a hard
-    # dep of this library, so no runtime `ensure_loaded?`
-    # check is needed.
-    defp ensure_calendar(%Date{calendar: Calendar.ISO} = date, :gregorian), do: date
+    # calendar; convert otherwise. A `:calendar` that is no
+    # calendar module leaves the date alone, so a junk attr
+    # renders rather than raising on the render path.
+    defp ensure_calendar(%Date{calendar: calendar} = date, calendar), do: date
 
-    defp ensure_calendar(%Date{} = date, cldr_calendar) when is_atom(cldr_calendar) do
-      case Calendrical.calendar_from_cldr_calendar_type(cldr_calendar) do
-        {:ok, module} when date.calendar == module ->
-          date
-
-        {:ok, module} ->
-          case Date.convert(date, module) do
-            {:ok, converted} -> converted
-            _ -> date
-          end
-
-        _ ->
-          date
+    defp ensure_calendar(%Date{} = date, calendar) when is_atom(calendar) do
+      if calendar_module?(calendar) do
+        converted(date, calendar)
+      else
+        date
       end
     end
 
-    defp ensure_calendar(date, _), do: date
+    defp ensure_calendar(date, _calendar), do: date
+
+    defp converted(date, calendar) do
+      case Date.convert(date, calendar) do
+        {:ok, converted} -> converted
+        _ -> date
+      end
+    end
 
     defp date_attr(nil), do: nil
     defp date_attr(%Date{} = d), do: Date.to_iso8601(d)
@@ -647,8 +647,8 @@ if Code.ensure_loaded?(Phoenix.Component) and
     defp iso_attr(_explicit, string) when is_binary(string) and string != "", do: string
     defp iso_attr(_, _), do: ""
 
-    # Map a CLDR calendar key (the `Localize.Calendar` /
-    # `Calendrical` convention) to the corresponding BCP-47
+    # Map the CLDR calendar type a calendar module names to the
+    # corresponding BCP-47
     # `Intl.DateTimeFormat` calendar identifier so the JS
     # hook's `Intl.DateTimeFormat({ calendar: ... })` call
     # produces correctly-labelled month/year strings. Only
@@ -674,7 +674,30 @@ if Code.ensure_loaded?(Phoenix.Component) and
       roc: "roc"
     }
 
-    defp cldr_to_intl_calendar(atom) when is_atom(atom),
-      do: Map.get(@intl_calendar_map, atom, "gregory")
+    defp intl_calendar(calendar),
+      do: Map.get(@intl_calendar_map, cldr_calendar_type(calendar), "gregory")
+
+    # A calendar module names its own CLDR calendar type.
+    # `Calendar.ISO`, which Calendrical did not compile, is
+    # `:gregorian`; anything that is no calendar falls through to
+    # it rather than raising on the render path.
+    defp cldr_calendar_type(Calendar.ISO), do: :gregorian
+
+    defp cldr_calendar_type(calendar) when is_atom(calendar) do
+      if calendar_module?(calendar) and function_exported?(calendar, :cldr_calendar_type, 0) do
+        calendar.cldr_calendar_type()
+      else
+        :gregorian
+      end
+    end
+
+    defp cldr_calendar_type(_calendar), do: :gregorian
+
+    # `Calendrical.calendar_module?/1` is false for `Calendar.ISO`,
+    # which Calendrical did not compile, so it is named here.
+    defp calendar_module?(Calendar.ISO), do: true
+
+    defp calendar_module?(calendar) when is_atom(calendar),
+      do: Calendrical.calendar_module?(calendar)
   end
 end

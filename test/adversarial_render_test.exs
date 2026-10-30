@@ -17,6 +17,8 @@ defmodule Localize.Inputs.Date.AdversarialRenderTest do
   """
 
   alias Localize.Inputs.Date.Components
+  alias Localize.Inputs.Date.Parser
+  alias Localize.Inputs.Date.Validator
 
   # Adversarial value classes per attr type. Each list is
   # tried in turn against the targeted attr; the rest of
@@ -139,6 +141,43 @@ defmodule Localize.Inputs.Date.AdversarialRenderTest do
     end
   end
 
+  describe "Parser.parse_date/2" do
+    test "answers an error tuple for a value that is neither a string nor nil" do
+      for value <- [42, 1.5, :"", :unknown, ["2026-05-16"], %{"a" => 1}, {1, 2}, true] do
+        assert_no_raise(fn -> Parser.parse_date(value) end, context: "value=#{inspect(value)}")
+
+        assert {:error, %Localize.InvalidValueError{}} = Parser.parse_date(value)
+      end
+    end
+
+    test "answers an error tuple for every adversarial :calendar" do
+      for calendar <- @bad_atoms do
+        assert_no_raise(fn -> Parser.parse_date("2026-05-16", calendar: calendar) end,
+          context: "calendar=#{inspect(calendar)}"
+        )
+      end
+    end
+  end
+
+  describe "Validator" do
+    test "validate_date/2 does not raise for any value and bound" do
+      for value <- @bad_dates, bound <- @bad_bounds do
+        assert_no_raise(fn -> Validator.validate_date(value, min: bound, max: bound) end,
+          context: "value=#{inspect(value)} bound=#{inspect(bound)}"
+        )
+      end
+    end
+
+    test "validate_date_range/2 does not raise for any value" do
+      for value <- @bad_dates do
+        assert_no_raise(
+          fn -> Validator.validate_date_range(%{start: value, end: value}, required: true) end,
+          context: "range=#{inspect(value)}"
+        )
+      end
+    end
+  end
+
   # ── Helpers ───────────────────────────────────────────────
 
   defp render(component, overrides) do
@@ -159,7 +198,7 @@ defmodule Localize.Inputs.Date.AdversarialRenderTest do
       placeholder_from: nil,
       placeholder_to: nil,
       display_format: :medium,
-      calendar: :gregorian,
+      calendar: Calendar.ISO,
       variant: :auto,
       js: true,
       class: nil,
@@ -189,7 +228,7 @@ defmodule Localize.Inputs.Date.AdversarialRenderTest do
   rescue
     e ->
       flunk("""
-      Component raised an exception under #{ctx}:
+      Raised an exception under #{ctx}:
 
         #{Exception.format(:error, e, [])}
       """)
